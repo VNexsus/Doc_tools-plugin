@@ -1,0 +1,75 @@
+<!--
+ (c) VNexsus 2021-2022
+
+ Licensed under the Apache License, Version 2.0 (the "License");
+ you may not use this file except in compliance with the License.
+ You may obtain a copy of the License at
+
+     http://www.apache.org/licenses/LICENSE-2.0
+
+ Unless required by applicable law or agreed to in writing, software
+ distributed under the License is distributed on an "AS IS" BASIS,
+ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ See the License for the specific language governing permissions and
+ limitations under the License.
+ -->
+ 
+<!DOCTYPE html>
+<html lang="en">
+<head>
+	<meta charset="UTF-8">
+	<title>doc_tools</title>
+	<script type="text/javascript" src="resources/js/plugins.js"></script>
+    <script type="text/javascript" src="resources/js/plugins-ui.js"></script>
+    <link rel="stylesheet" href="resources/css/plugins.css">
+	<script src="scripts/tools.js"></script>
+	<script src="vendor/number_to_words/bundle.js"></script>
+	<style>
+		html, body {
+			min-height: 100% !important;
+			height: 100%;
+			overflow-y:hidden;
+            overflow-x: hidden;
+		}
+
+		.noselect {
+			-khtml-user-select: none;
+			user-select: none;
+			-moz-user-select: none;
+			-webkit-user-select: none;
+		}
+
+		td {
+			background: transparent;
+			border:0;
+			padding:10px;
+		}
+
+		.celllabel {
+			text-align: center;
+			font-size: 12px;
+			color: #444444;
+			font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif;
+		}
+
+		img:hover {
+			opacity: .5;
+			cursor: pointer;
+		}
+		
+		img.disabled{
+			opacity: .2;
+			filter: grayscale(1);
+			cursor: not-allowed;
+		}
+		
+	</style>
+</head>
+<body style="width: 100%;height: 100%; margin: 0;">
+	<div id="scrollable-container-id" style="position: relative; height: 100%; overflow: hidden">
+		<div id="text"></div>
+		<table id="main" style="border:0; margin:0; padding:0; border-spacing:0; text-align: center;">
+		</table>
+	</div>
+</body>
+</html>

@@ -1,0 +1,29 @@
+{
+    "name" : "Инструменты для работы с документами",
+    "guid" : "asc.{3ACCEF78-860F-4D81-89E5-464C907F3628}",
+	"version": "1.0",
+
+    "variations" : [
+        {
+            "description" : "Document tools",
+            "url"         : "index.html",
+
+            "icons"           : ["resources/img/icon.png", "resources/img/icon@2x.png"],
+            "isViewer"        : false,
+            "EditorsSupport"  : ["word", "cell", "slide"],
+
+            "isVisual"        : true,
+            "isModal"         : false,
+            "isInsideMode"    : true,
+
+            "initDataType"    : "text",
+            "initData"        : "",
+
+            "isUpdateOleOnResize" : false,
+
+            "buttons"        : [ ],
+			
+			"initOnSelectionChanged": true
+        }
+    ]
+}
