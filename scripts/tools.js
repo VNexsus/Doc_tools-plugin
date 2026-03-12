@@ -17,10 +17,136 @@
 (function(window, undefined){
 
 	var text = '';
+	var isScrollbarInitialized = false;
+	var selectionPollInterval = null;
+	var isSelectionRequestPending = false;
+	var lastSelectionText = null;
+
+	function getSelectionStats(selectionText)
+	{
+		var normalizedText = (selectionText || "").replace(/\r\n/g, "\n");
+		var trimmedText = normalizedText.trim();
+
+		return {
+			charsCount: normalizedText.length,
+			charsNoSpacesCount: normalizedText.replace(/\s/g, "").length,
+			wordsCount: trimmedText ? trimmedText.split(/\s+/).length : 0,
+			hasSelection: normalizedText.length > 0
+		};
+	}
+
+	function renderSelectionStats(selectionText)
+	{
+		var stats = getSelectionStats(selectionText);
+		var hint = document.getElementById("selection-stats-hint");
+
+		document.getElementById("selection-char-count").innerText = stats.charsCount;
+		document.getElementById("selection-char-no-spaces-count").innerText = stats.charsNoSpacesCount;
+		document.getElementById("selection-word-count").innerText = stats.wordsCount;
+		hint.innerText = stats.hasSelection
+			? "Статистика показана для текущего выделенного фрагмента."
+			: "Выделите текст, и статистика обновится автоматически.";
+	}
+
+	function getSelectedCellsText()
+	{
+		var oWorksheet = parent.g_asc_plugins && parent.g_asc_plugins.api
+			? parent.g_asc_plugins.api.GetActiveSheet()
+			: null;
+		if (!oWorksheet)
+			return "";
+
+		var aRange = oWorksheet.GetSelection().GetAddress(false, false, "xlA1", false);
+		var aRangeAddr = aRange.split(":");
+		var colstart = oWorksheet.GetRange(aRangeAddr[0]).GetCol()-1;
+		var rowstart = oWorksheet.GetRange(aRangeAddr[0]).GetRow()-1;
+		var colend = colstart;
+		var rowend = rowstart;
+		var rows = [];
+
+		if (aRangeAddr.length > 1) {
+			colend = oWorksheet.GetRange(aRangeAddr[1]).GetCol()-1;
+			rowend = oWorksheet.GetRange(aRangeAddr[1]).GetRow()-1;
+		}
+
+		for (var y = rowstart; y <= rowend; y++) {
+			var rowValues = [];
+			for (var x = colstart; x <= colend; x++) {
+				var cell = oWorksheet.GetRangeByNumber(y, x);
+				rowValues.push(cell ? (cell.GetValue() || "") : "");
+			}
+			rows.push(rowValues.join("\t"));
+		}
+
+		return rows.join("\n");
+	}
+
+	function getCurrentSelectionText(callback)
+	{
+		switch (window.Asc.plugin.info.editorType) {
+			case "word":
+			case "slide":
+				window.Asc.plugin.executeMethod("GetSelectedText", [], function(sText) {
+					callback(sText || "");
+				});
+				break;
+			case "cell":
+				try {
+					callback(getSelectedCellsText());
+				}
+				catch (err) {
+					callback("");
+				}
+				break;
+			/*default:
+				callback(text || "");
+				break;*/
+		}
+	}
+
+	function refreshSelectionStats(force)
+	{
+		if (isSelectionRequestPending)
+			return;
+
+		isSelectionRequestPending = true;
+		getCurrentSelectionText(function(selectionText) {
+			isSelectionRequestPending = false;
+			selectionText = selectionText || "";
+			text = selectionText;
+
+			if (!force && selectionText === lastSelectionText)
+				return;
+
+			lastSelectionText = selectionText;
+			renderSelectionStats(selectionText);
+			updateScroll();
+		});
+	}
+
+	function startSelectionTracking()
+	{
+		if (selectionPollInterval)
+			window.clearInterval(selectionPollInterval);
+
+		refreshSelectionStats(true);
+		selectionPollInterval = window.setInterval(function() {
+			refreshSelectionStats(false);
+		}, 350);
+	}
+
+	function stopSelectionTracking()
+	{
+		if (selectionPollInterval) {
+			window.clearInterval(selectionPollInterval);
+			selectionPollInterval = null;
+		}
+	}
 
 	function updateScroll()
 	{
-		Ps.update();
+		if (Ps)
+			Ps.update();
 	}
 
 	var _tools = [
@@ -130,16 +256,26 @@
 	window.Asc.plugin.init = function(sText)
 	{
 		var container = document.getElementById('scrollable-container-id');
-		
-		Ps = new PerfectScrollbar('#' + container.id, {});
-		
-		add_tools();
-		
-		text = sText;
+
+		if (!isScrollbarInitialized)
+		{
+			Ps = new PerfectScrollbar('#' + container.id, {});
+			add_tools();
+			isScrollbarInitialized = true;
+		}
+
+		text = sText || "";
+		startSelectionTracking();
 	};
+
+	/*window.Asc.plugin.event_onTargetPositionChanged = function()
+	{
+		refreshSelectionStats(false);
+	};*/
 	
 	window.Asc.plugin.button = function(id)
 	{
+		stopSelectionTracking();
 		this.executeCommand("close", "");
 	};
 
@@ -399,21 +535,15 @@
 				if(oWorksheet){
 					var aRange = oWorksheet.GetSelection().GetAddress(false,false,"xlA1",false);
 					var aRangeAddr = aRange.split(':');
-					var colstart = oWorksheet.GetRange(aRangeAddr[0]).GetCol();
-					var rowstart = oWorksheet.GetRange(aRangeAddr[0]).GetRow();
-					if(parent.Asc.editor.GetVersion() == "7.4.0"){
-						colstart--;
-						rowstart--;
-					}
+					var colstart = oWorksheet.GetRange(aRangeAddr[0]).GetCol()-1;
+					var rowstart = oWorksheet.GetRange(aRangeAddr[0]).GetRow()-1;
 					var colend = colstart;
 					var rowend = rowstart;
 					if(aRangeAddr.length > 1){
-						var colend = oWorksheet.GetRange(aRangeAddr[1]).GetCol();
-						var rowend = oWorksheet.GetRange(aRangeAddr[1]).GetRow();
-						if(parent.Asc.editor.GetVersion() == "7.4.0"){
-							colend--;
-							rowend--;
-						}
+						var colend = oWorksheet.GetRange(aRangeAddr[1]).GetCol()-1;
+						var rowend = oWorksheet.GetRange(aRangeAddr[1]).GetRow()-1;
+						colend--;
+						rowend--;
 						if(colend > colstart){
 							parent.Common.UI.warning({msg: "Выделите только один столбец!"})
 							return;
@@ -482,21 +612,13 @@
 				if(oWorksheet){
 					var aRange = oWorksheet.GetSelection().GetAddress(false,false,"xlA1",false);
 					var aRangeAddr = aRange.split(':');
-					var colstart = oWorksheet.GetRange(aRangeAddr[0]).GetCol();
-					var rowstart = oWorksheet.GetRange(aRangeAddr[0]).GetRow();
-					if(parent.Asc.editor.GetVersion() == "7.4.0"){
-						colstart--;
-						rowstart--;
-					}
+					var colstart = oWorksheet.GetRange(aRangeAddr[0]).GetCol()-1;
+					var rowstart = oWorksheet.GetRange(aRangeAddr[0]).GetRow()-1;
 					var colend = colstart;
 					var rowend = rowstart;
 					if(aRangeAddr.length > 1){
-						var colend = oWorksheet.GetRange(aRangeAddr[1]).GetCol();
-						var rowend = oWorksheet.GetRange(aRangeAddr[1]).GetRow();
-						if(parent.Asc.editor.GetVersion() == "7.4.0"){
-							colend--;
-							rowend--;
-						}
+						var colend = oWorksheet.GetRange(aRangeAddr[1]).GetCol()-1;
+						var rowend = oWorksheet.GetRange(aRangeAddr[1]).GetRow()-1;
 						if(colend > colstart){
 							parent.Common.UI.warning({msg: "Выделите только один столбец!"})
 							return;
@@ -523,13 +645,15 @@
 		window.parent.focus();
 	}
 
-	window.Asc.plugin.onExternalMouseUp = function()
+	/*window.Asc.plugin.onExternalMouseUp = function()
     {
         var evt = document.createEvent("MouseEvents");
         evt.initMouseEvent("mouseup", true, true, window, 1, 0, 0, 0, 0,
             false, false, false, false, 0, null);
 
         document.dispatchEvent(evt);
-    };
+    };*/
 
 })(window, undefined);
+
+
