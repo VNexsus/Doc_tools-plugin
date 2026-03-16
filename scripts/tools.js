@@ -30,7 +30,7 @@
 		return {
 			charsCount: normalizedText.length,
 			charsNoSpacesCount: normalizedText.replace(/\s/g, "").length,
-			wordsCount: trimmedText ? trimmedText.split(/\s+/).length : 0,
+			wordsCount: (trimmedText.match(/[\p{L}\p{N}]+(?:[\p{Pd}][\p{L}\p{N}]+)*/gu) || []).length,
 			hasSelection: normalizedText.length > 0
 		};
 	}
@@ -542,8 +542,6 @@
 					if(aRangeAddr.length > 1){
 						var colend = oWorksheet.GetRange(aRangeAddr[1]).GetCol()-1;
 						var rowend = oWorksheet.GetRange(aRangeAddr[1]).GetRow()-1;
-						colend--;
-						rowend--;
 						if(colend > colstart){
 							parent.Common.UI.warning({msg: "Выделите только один столбец!"})
 							return;
